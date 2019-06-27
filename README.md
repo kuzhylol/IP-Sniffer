@@ -23,7 +23,7 @@ Synopsis
 ```
 # make clean all
 # ./main -h
-./sniffer options [...]
+./ipsniffer options [...]
 	--start  Run sniffer daemon with default interface (eth0)
 	--stop   Stop sniffer daemon
 	--select [iface] Run sniffer daemon with [iface] interface
@@ -32,13 +32,14 @@ Synopsis
  	-w --show    Display collected statistics
  	-h --help    Display usage information
  	General:  ./main --iface wlpxsx --file="path_to_dump/dump.log" 
- 	Execute with sudo
+ 	*Execute with sudo
+	*default path for dump - "/tmp/dump.log"
 ```
 
 
 Flow example on 'wlan0':
 ```
-# ./sniffer -i wlan0
+# ./ipsniffer -i wlan0
 IP:62.x.236.171 Package count: 5 
 IP:192.x.1.18 Package count: 2 
 IP:138.x.81.199 Package count: 5 
@@ -52,6 +53,6 @@ IP:54.x.66.195 Package count: 2
 
 System logs of sniffer is displayed in '/var/log/ip_sniffer.log'
 
-PID of daemon and dump file path is displayed in '/var/run/ip_sniffer.pid'
+PID of daemon and dump file path are displayed in '/var/run/ip_sniffer.pid'
 
 
