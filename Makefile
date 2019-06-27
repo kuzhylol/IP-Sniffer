@@ -1,4 +1,4 @@
-TARGET=main 
+TARGET=ipsniffer 
 DEPS=daemon sniff
 LIBS=glib-2.0 libpcap
 
@@ -26,3 +26,4 @@ $(TARGET): $(DEPS)
 clean:
 	@echo Tidying things up...
 	-rm -f *.o $(TARGET)
+	-rm -f *.log

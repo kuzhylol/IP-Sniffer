@@ -5,7 +5,7 @@
 
 #include "daemon.h"
 #include "sniff.h"
-#include "main.h"
+#include "ipsniffer.h"
 
 
 int run_sniffing(char *dev_interface){

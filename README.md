@@ -2,19 +2,19 @@ IP Sniffer
 ==================
 
 Sniffer is the service that collects information about network traffic.
-The service collects all incomming IPs and counts them in daemon mode.
+The service collects all incoming IPs and counts them in daemon mode(on the background of OS).
 
-The IPs retrievs via libpcap API.
-Searching the IP provides with O(1) time complexity.It is connected with used gHashTable in it.
-Daemon managment provides via signals.
-All output data transmitts to dump file on SIGUSR2 signal and saved respectively.
+The IPs retrieve via libpcap API.
+Searching the IP is provided with O(1) time complexity. It is connected with used gHashTable in it. Еherefore key -> IP address and count -> value.
+Daemon management provides via signals.
+All output data transmits to dump file on SIGUSR2 signal and saved respectively.
 
-
-For rebooting the daemon need to rerun main executable file.After this the process will be stopped, cleaned and runned new.
+For rebooting the daemon need to rerun the main executable file. After this, the process will be stopped, cleaned and run new.
 In additional is possible to stop daemon via "--stop" key
 
-Like an addition is usefull to control daemon via addition programs in another process (f.e. in cli).
-But seems to me this implementation is a good basis for designing any variant of data analysis.
+That implementation gives the ability to communicate with daemon and control it in a wide enough range of variants. In result, the user will get a dump with data array (like shown below).
+As addition, the daemon is able to be controlled via peripheral programs in another process (f.e. in cli). Have got plans to design a program to communicate with daemon via IPC in the future.
+
 All abilities showed below
 
 Synopsis
@@ -49,5 +49,8 @@ IP:192.x.1.16 Package count: 22
 IP:140.x.114.25 Package count: 4 
 IP:54.x.66.195 Package count: 2 
 ```
+
+System logs of sniffer is displayed in '/var/log/ip_sniffer.log'
+PID id of daemon and dump file path is displayed in '/var/run/ip_sniffer.pid'
 
 

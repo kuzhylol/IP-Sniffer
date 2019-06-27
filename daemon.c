@@ -13,7 +13,7 @@
 
 #include "sniff.h"
 #include "daemon.h"
-#include "main.h"
+#include "ipsniffer.h"
 
 
 static void destroy_thread(void)

@@ -8,7 +8,7 @@
 
 #include "daemon.h"
 #include "sniff.h"
-#include "main.h"
+#include "ipsniffer.h"
 
 void put_log(char* msg, int msgcnt, ...)
 {
