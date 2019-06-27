@@ -51,6 +51,7 @@ IP:54.x.66.195 Package count: 2
 ```
 
 System logs of sniffer is displayed in '/var/log/ip_sniffer.log'
+
 PID id of daemon and dump file path is displayed in '/var/run/ip_sniffer.pid'
 
 
