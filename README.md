@@ -30,10 +30,9 @@ IPC managment, should use an another command line:
 # ipsniffer --stat - Put in command line all statistics about number of IP packages 
 ```
 
+Flow example on 'wlp3s0':
+![clisample](/media/sample.png)
 
-Flow example on 'wlan0':()
-
-
-System logs of sniffer is displayed in '/var/log/ip_sniffer.log'
+System logs of daemon is displayed in '/var/log/ip_sniffer.log'
 
 PID of daemon is displayed in '/var/run/ip_sniffer.pid'
