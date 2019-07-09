@@ -26,16 +26,10 @@ struct sniff_ip {
 
 #define IP_HL(ip)		(((ip)->ip_vhl) & 0x0f)
 
-extern char *dump_file;
-
-
-static GHashTable *ip_table = NULL;
+GHashTable *ip_table;
 pcap_t* phadle;
-bool lookup_break;
-
 
 int run_sniffing();
 
-void insertTo_ip_table(GHashTable *, char *);
 void receive_dataflow_callback(u_char *, const struct pcap_pkthdr* , const u_char *);
-void sniff_get_IPtable();
+void get_req();

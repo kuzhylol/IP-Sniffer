@@ -3,7 +3,6 @@
 
 #include <signal.h>
 #include <errno.h>
-#include <wait.h>
 #include <unistd.h>
 
 #include <stdbool.h>
@@ -13,8 +12,30 @@
 
 #include "sniff.h"
 #include "daemon.h"
-#include "ipsniffer.h"
 
+
+void put_log(char* msg, int msgcnt, ...)
+{
+        va_list ams;
+        char *nextmsg;
+        char *log_path = "/var/log/ip_sniffer.log";
+	FILE *fd = fopen(log_path, "a+");
+	if (NULL == fd) {
+		fprintf(stderr, "Cannot open the log file: %s\n", log_path);
+		exit(EXIT_FAILURE);
+	}
+
+        fprintf(fd, "|IP_SNIFFER|: %s", msg);
+
+        va_start(ams, msgcnt);
+        for(int i=0;i<msgcnt;i++){
+                nextmsg = va_arg(ams, char*);
+                fprintf(fd, "%s ", nextmsg);
+        }
+        fprintf(fd, "\n");
+        va_end(ams);
+	fclose(fd);
+}
 
 static void destroy_thread(void)
 {
@@ -35,83 +56,51 @@ static int fd_limit(int MaxFd)
 	return status;
 }
 
-int sniffer_fork(char *devname){
-        pid_t pid;
-        int rv_stat = 0;
-        int theResult = -1;
-
-	sigset_t sigset;
-	sigemptyset(&sigset);
-
-	int signal_list[5] = {SIGQUIT, SIGINT, SIGCHLD, SIGUSR1, SIGUSR2};
-
-	for(int i=0; i < (sizeof(signal_list)/sizeof(signal_list[0]));i++){
-		sigaddset(&sigset, signal_list[i]);
-	}
-
-	sigemptyset(&sigset);
-
-	sigprocmask(SIG_BLOCK, &sigset, NULL);
-
-        pid = fork();
-
-        switch(pid){
-                case(0):/* child  daemon execute*/
-                        put_log("Double fork: ", 1, strerror(errno));
-                        pid_file_create(SNIFF_PID_FILE, dump_file);
-                        umask(0);
-                        rv_stat = daemon_sniff(devname);
-                        /* close process */
-                        exit(rv_stat);
-                break;
-                case(1):/* parent_child */
-                        wait(&rv_stat);
-                        rv_stat = WEXITSTATUS(rv_stat);
-
-                        if(CHILD_HAVETO_TERMINATE == rv_stat){
-                                theResult = 0;
-			}
-			remove(SNIFF_PID_FILE);
-                        put_log("Second child stopped", 0);
-                break;
-                default:
-                        put_log("Fork failed ", 0);
-                break;
-        }
-
-        	return theResult;
-}
-
-void sniff_term(){
-	lookup_break = true;
-}
 
 int daemon_sniff(char* devname)
 {
 	int sniff_retval = 0;
-        lookup_break = false;
-	sigset_t sigset;
-	sigemptyset(&sigset);
-	int signal_list[3] = {SIGQUIT, SIGINT, SIGTERM};
+	// sigset_t sigset;
 
-	for(int i=0; i<sizeof(signal_list)/sizeof(signal_list[0]);i++){
-		sigaddset(&sigset, signal_list[i]);
+	int signal_list[2] = {SIGTERM, SIGUSR1};
+	size_t signum = sizeof(signal_list)/sizeof(signal_list[0]);
+
+	struct sigaction actchunk[signum];
+        for(size_t i=0;i<signum;i++){
+	       memset (&actchunk[i], '\0', sizeof(actchunk[i]));
+       }
+	/* handlers located in sniff.c */
+	void sniff_term(), get_req();
+
+        /* SIGTERM = sniff_term
+           SIGUSR1 = get_req */
+	void (*fsigs[])() = {sniff_term, get_req};
+
+	/* fill handlers field */
+	for(size_t i=0;i<signum;i++){
+		actchunk[i].sa_sigaction = fsigs[i];
+                actchunk[i].sa_flags=SA_SIGINFO; /* use sa_sigaction instead sa_handler (legacy) */
 	}
 
-	sigprocmask(SIG_BLOCK, &sigset, 0);
+	for(size_t i=0;i<signum;i++){
+		if(sigaction(signal_list[i], &actchunk[i], NULL) < 0){
+                        put_log("[DAEMON] Signal action error\n", 0);
+                        exit(EXIT_FAILURE);
+                }
+	}
 
-	signal(SIGUSR1, sniff_term);
-	signal(SIGUSR2, sniff_get_IPtable);
+	put_log("[DAEMON] Signal handlers granted \n", 0);
 
-        fd_limit(FD_LIMIT);
-
-	put_log("[DAEMON] Started\n", 0);
-
+	fd_limit(FD_LIMIT);
+	/* the main procedure of getting IP info */
+	/* search run_sniffing() in sniff.c */
 	sniff_retval = run_sniffing(devname);
+	put_log("[DAEMON] Sniffer completed\n", 0);
+
 
 	destroy_thread();
 
-	put_log("[DAEMON] Sniffer completed and terminated\n", 0);
+	put_log("[DAEMON] Sniffer terminated\n", 0);
 
 	return sniff_retval;
 }

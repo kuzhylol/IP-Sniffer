@@ -1,0 +1,11 @@
+[Unit]
+Description=Tool for count IP packages in background
+
+[Service]
+Type=forking
+PIDFile=/var/run/ip_sniffer.pid 
+ExecStart=/usr/sbin/dipsniffer --iface %I
+ExecStop=kill -s SIGTERM $MAINPID
+
+[Install]
+WantedBy=multi-user.target

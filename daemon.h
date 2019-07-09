@@ -6,16 +6,13 @@
 #include "sniff.h"
 
 /* the limit for opened descriptors */
-#define FD_LIMIT			1024*10
-
-#define CHILD_HAVETO_TERMINATE	2
-
-#define SNIFF_PID_FILE "/var/run/ip_sniffer.pid"
-#define LOG_FILE "/var/log/ip_sniffer.log"
+#define FD_LIMIT	1024*10
+#define IPCOUNT_FIFO_F "/tmp/ipfifo"
+#define  IPCOUNT_FIFO_S "/tmp/ipfifo1"
 
 #if !defined(_GNU_SOURCE)
 	#define _GNU_SOURCE
 #endif
 
 int daemon_sniff(char*);
-int sniffer_fork(char*);
+void put_log(char* , int , ...);
