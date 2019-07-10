@@ -101,8 +101,8 @@ int main(int argc,char *argv[])
 		fatal("Please, run daemon, use: systemctl start dipsniffer");
 	}
 
-	static char *ipcount_fifo_f = "/tmp/ipfifo";
-	static char *ipcount_fifo_s = "/tmp/ipfifo1";
+	static const char *ipcount_fifo_f = "/tmp/ipfifo";
+	static const char *ipcount_fifo_s = "/tmp/ipfifo1";
 
 	if(mkfifo(ipcount_fifo_s, 0666) == -1){
 		if(errno != EEXIST)
