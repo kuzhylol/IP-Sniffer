@@ -10,7 +10,7 @@
 #include "daemon.h"
 #include "sniff.h"
 
-static bool pid_file_create(char* filename)
+static bool pid_file_create(const char* filename)
 {
 	pid_t aPID = -1;
         int success = false;

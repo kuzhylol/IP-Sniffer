@@ -18,8 +18,8 @@ Synopsis
 
 ```
 # make clean all
-# make install | (embbed daemon in systemd and cli binaries routines in /usr/sbin/
-# make booton/bootoff | set daemon in autostarting mode (not tested on a wide ranges of devices)
+# make install/uninstall - embbed/withdraw daemon in/from systemd and cli binaries routines in/from /usr/sbin/
+# make booton/bootoff - set daemon in autostarting mode (not tested on a wide ranges of devices)
 # systemctl start dipsniffer@xxx where 'xxx' - name of iterface (the default is eth0)
 # systemctl stop dipsniffer - stop dipsniffer daemon execution
 # systemctl -l status dipsniffer - spectate the status

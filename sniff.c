@@ -22,7 +22,7 @@ void sniff_term(){
 }
 
 
-static inline char *make_ipstring(char *ip, char *key, size_t size){
+static inline char *make_ipstring(const char *ip, const char *key, size_t size){
 	char *buffer2write = calloc(size, sizeof(buffer2write));
 	char *Result = NULL;
 
@@ -70,7 +70,7 @@ static char *get_ip(){
 	return r_ip;
 }
 
-static void match_specific_ip(char* anip, int fdes){
+static void match_specific_ip(const char* anip, const int fdes){
 
 	gpointer ipcnt = g_hash_table_lookup(ip_table, (gpointer*) anip );
 	char *ip2write = make_ipstring(anip, (char*)ipcnt, 64);
@@ -162,7 +162,7 @@ static inline void insertTo_ip_table(GHashTable *anIP_table, char *key_ip){
 }
 
 
-int run_sniffing(char *dev_interface){
+int run_sniffing(const char *dev_interface){
 	int timeout = -1;
 
 	bool promiscuous_mode = false;

@@ -14,5 +14,5 @@
 	#define _GNU_SOURCE
 #endif
 
-int daemon_sniff(char*);
-void put_log(char* , int , ...);
+int daemon_sniff(const char*);
+void put_log(const char* , int , ...);

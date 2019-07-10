@@ -14,7 +14,7 @@
 #include "daemon.h"
 
 
-void put_log(char* msg, int msgcnt, ...)
+void put_log(const char* msg, int msgcnt, ...)
 {
         va_list ams;
         char *nextmsg;
@@ -57,7 +57,7 @@ static int fd_limit(int MaxFd)
 }
 
 
-int daemon_sniff(char* devname)
+int daemon_sniff(const char* devname)
 {
 	int sniff_retval = 0;
 	// sigset_t sigset;

@@ -8,8 +8,8 @@ CFLAGS=-O2 -std=gnu11 -Wall -Wextra -Wpedantic
 
 DEPS:=$(addsuffix .o, $(DEPS))
 LIBFLAGS:=$(shell pkg-config --cflags --libs $(LIBS))	
-SYSTEMD=/etc/systemd/system/
-SYSPATH=/usr/sbin/
+SYSTEMD=/etc/systemd/system
+SYSPATH=/usr/sbin
 IPATH=./bin
 
 #sudo systemctl start ipsniffer
@@ -34,10 +34,15 @@ $(TARGET): $(DEPS)
 $(IPC):	$(TARGET)
 	$(CC) $(IPATH)/$(addsuffix .c, $(IPC)) -o $(IPATH)/$(IPC)
 
-install: $(TARGET) 	## to embbed daemon in systemd
-	cp $(TARGET) $(IPATH)/$(IPC) -f $(SYSPATH)
-	cp $(IPATH)/$(addsuffix @.service , $(TARGET)) -f $(SYSTEMD)
+install:  	## to embbed daemon in systemd
+	cp $(TARGET) $(IPATH)/$(IPC) -f $(SYSPATH)/
+	cp $(IPATH)/$(addsuffix @.service , $(TARGET)) -f $(SYSTEMD)/
 	systemctl daemon-reload
+
+uninstall: 	## to remove executable files from OS
+	rm -f $(SYSPATH)/$(IPC)  
+	rm -f $(SYSTEMD)/$(addsuffix @.service , $(TARGET))
+
 
 booton: $(TARGET) 	## to configure a service to start automatically on boot
 	systemctl enable $(TARGET)
