@@ -3,8 +3,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <errno.h>
-
-#include <glib.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "daemon.h"
@@ -31,18 +30,12 @@ static bool pid_file_create(const char* filename)
 }
 
 
-static const char *array[2] = {
-        " --select [iface] Run sniffer daemon with [iface] interface\n",
-        " -h --help    Display usage information.n \n"
-};
+void print_usage(FILE* stream, int exit_code,
+		char* program_name, const char *err[], int optnum) {
 
-
-const char* program_name;
-
-void print_usage(FILE* stream, int exit_code) {
 	fprintf(stream, "Usage: %s options [...] \n", program_name);
-        for(int i=0;i<2;i++){
-                fprintf(stream, "%s",array[i]);
+        for(int i=0;i<optnum;i++){
+                fprintf(stream, "%s",err[i]);
         }
 	 exit(exit_code);
 }
@@ -50,6 +43,14 @@ void print_usage(FILE* stream, int exit_code) {
 
 int main(int argc,char *argv[])
 {
+
+	char* program_name;
+	unsigned optsize = 2;
+	static const char *optarray[2] = {
+		" --select [iface] Run sniffer daemon with [iface] interface\n",
+		" -h --help    Display usage information.n \n"
+	};
+
 	const char* const short_options = "l:h";
 	static char *device_interface = "eth0";
 
@@ -69,10 +70,10 @@ int main(int argc,char *argv[])
 				device_interface = strdup(optarg);
 			break;
 			case 'h':
-				print_usage(stdout, 0);
+				print_usage(stdout, EXIT_SUCCESS, program_name, optarray, optsize);
                         break;
 			case '?':
-				print_usage(stderr, 1);
+				print_usage(stderr, EXIT_FAILURE, program_name, optarray, optsize);
                         break;
 			case -1:
 			break;
@@ -118,10 +119,10 @@ int main(int argc,char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-        // /* Close out the standard file descriptors */
-	// close(STDIN_FILENO);
-	// close(STDOUT_FILENO);
-	// close(STDERR_FILENO);
+        /* Close out the standard file descriptors */
+	close(STDIN_FILENO);
+	close(STDOUT_FILENO);
+	close(STDERR_FILENO);
 
         int rv_stat;
         int aResult = -1;
@@ -139,8 +140,9 @@ int main(int argc,char *argv[])
                         }
 
 			/* file locates in daemon.h */
+			/* 0666 | wr-wr-wr- */
 			if(mkfifo(IPCOUNT_FIFO_F, 0666) == -1){
-				if(errno != EEXIST)
+				if(EEXIST != errno)
 					put_log("Can not open fifo channel to receive", 0);
 			}
 
@@ -150,7 +152,6 @@ int main(int argc,char *argv[])
                         exit(rv_stat);
                 break;
                 case(1):/* parent_child */
-                        put_log("Parent is wating for child answer", 0);
 
                         wait(&rv_stat);
                         rv_stat = WEXITSTATUS(rv_stat);
@@ -159,7 +160,6 @@ int main(int argc,char *argv[])
                                 aResult = 0;
 			}
 			unlink(sniff_pid_file);
-                        put_log("Second child stopped", 0);
                 break;
                 default:
                         aResult = -1;
@@ -167,6 +167,8 @@ int main(int argc,char *argv[])
                         exit(EXIT_FAILURE);
                 break;
         }
+
+	put_log("[SNIFFING]Sniffer terminated", 0);
 
 	free(device_interface);
 	unlink(IPCOUNT_FIFO_F);

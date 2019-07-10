@@ -4,16 +4,43 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <glib-2.0/gmodule.h>
+#include <pcap.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
+
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #include <sys/socket.h>
 
 #include "daemon.h"
 #include "sniff.h"
 
+/* associative array for save hashtable
+with output data (ipt+package num)*/
+GHashTable *ip_table;
+pcap_t* phadle;
 
-static inline void insertTo_ip_table(GHashTable *anIP_table, char *key_ip);
+struct ip_header{
+        u_char  ip_vhl;                 /* version << 4 | header length >> 2 */
+        u_char  ip_tos;                 /* type of service */
+        u_short ip_len;                 /* total length */
+        u_short ip_id;                  /* identification */
+        u_short ip_off;                 /* fragment offset field */
+        #define IP_RF 0x8000            /* reserved fragment flag */
+        #define IP_DF 0x4000            /* dont fragment flag */
+        #define IP_MF 0x2000            /* more fragments flag */
+        #define IP_OFFMASK 0x1fff       /* mask for fragmenting bits */
+        u_char  ip_ttl;                 /* time to live */
+        u_char  ip_p;                   /* protocol */
+        u_short ip_sum;                 /* checksum */
+        struct  in_addr ip_src;  /* source and dest address */
+};
+/* IP header len */
+#define IP_HL(ip) (((ip)->ip_vhl) & 0x0f)
+
+
+static inline void insert_ip2table(GHashTable *anIP_table, char *key_ip);
 
 
 /* SIGTERM handler */
@@ -46,7 +73,7 @@ static inline char *make_ipstring(const char *ip, const char *key, size_t size){
 static void fout_iptable(gpointer key, gpointer value, gpointer file){
 	int *ip_file = file;
 	char *ip2write = make_ipstring((char*)key, (char*)value, 64);
-		if(NULL != ip2write){
+	if(NULL != ip2write){
 		write(*ip_file, ip2write, 64);
 		free(ip2write);
 	}else {
@@ -54,10 +81,9 @@ static void fout_iptable(gpointer key, gpointer value, gpointer file){
 	}
 }
 
-
-static char *get_ip(){
-	char *r_ip = calloc(32, sizeof(r_ip));
-	if(NULL == r_ip)
+static char *get_ip(int buffsize){
+	char *ip_literal;
+	if(NULL == (ip_literal = calloc(buffsize, sizeof(ip_literal))))
 		return NULL;
 
 	int readfd;
@@ -65,16 +91,17 @@ static char *get_ip(){
 		put_log("[SNIFFING]Opening fifo channel error on read", 1, strerror(errno));
 		return NULL;
 	}
-	read(readfd, r_ip, 32);
+	read(readfd, ip_literal, buffsize);
 	close(readfd);
-	return r_ip;
+	/* dont forget free ip_literal*/
+	return ip_literal;
 }
 
 static void match_specific_ip(const char* anip, const int fdes){
-
+	unsigned ip_plus_cnt_size = 64;
 	gpointer ipcnt = g_hash_table_lookup(ip_table, (gpointer*) anip );
-	char *ip2write = make_ipstring(anip, (char*)ipcnt, 64);
-	write(fdes, ip2write, 64);
+	char *ip2write = make_ipstring(anip, (char*)ipcnt, ip_plus_cnt_size);
+	write(fdes, ip2write, ip_plus_cnt_size);
 	free(ip2write);
 }
 
@@ -82,9 +109,10 @@ static void match_specific_ip(const char* anip, const int fdes){
 /* USR1 handler */
 void get_req(){
 
-	char *sr_ip;
-	sr_ip = get_ip();
-	if(sr_ip == NULL)
+	char *sip_literal;
+	int ip_cnt = 64;
+	sip_literal = get_ip(ip_cnt);
+	if(NULL == sip_literal)
 		return;
 
 	/* answer */
@@ -94,19 +122,20 @@ void get_req(){
 		return;
 	}
 
-	switch(strcmp(sr_ip, "putall")){
+	char *get_fullstatistic = "putall";
+	switch(strcmp(sip_literal, get_fullstatistic)){
 		case(0):
 			/* give all ip statistics to cli*/
 			g_hash_table_foreach(ip_table, fout_iptable, &writefd);
 		break;
 		default:
 			/* give specific ip statistics to cli */
-			match_specific_ip(sr_ip, writefd);
+			match_specific_ip(sip_literal, writefd);
 		break;
 
 	}
 	close(writefd);
-	free(sr_ip);
+	free(sip_literal);
 	put_log("[SNIFFING]IP putted into dump", 0);
 }
 
@@ -114,28 +143,30 @@ void get_req(){
 void receive_dataflow_callback(u_char *args, const struct pcap_pkthdr* pkthdr,
 		const u_char *packet)
 {
-	const struct sniff_ip *ip; /* The IP header */
-	u_int size_ip;
+	const struct ip_header *ip; /* The IP header */
+	u_int ipheader_lenght;
+	u_int edgelen = 20;
 
-	ip = (struct sniff_ip*)(packet + SIZE_ETHERNET);
-	size_ip = IP_HL(ip)*4;
-	if (size_ip < 20) {
+	ip = (struct ip_header*)(packet + SIZE_ETHERNET);
+	ipheader_lenght = IP_HL(ip)*4;
+	if (ipheader_lenght < edgelen) {
 		return;
 	}
 
-	insertTo_ip_table(ip_table, inet_ntoa(ip->ip_src) );
+	char *connected_ip = inet_ntoa(ip->ip_src);
+	insert_ip2table(ip_table,  connected_ip);
 }
 
 
-static inline void insertTo_ip_table(GHashTable *anIP_table, char *key_ip){
+static inline void insert_ip2table(GHashTable *anIP_table, char *key_ip){
 
-	char* subIP_key = NULL;
-        char* subcnt_IP = NULL;
-        char** ip_key = &subIP_key;
-        char** cnt_ip = &subcnt_IP;
+	char* literal_hashipkey = NULL;
+        char* literal_hashnum_packages = NULL;
+        char** ip_key = &literal_hashipkey;
+        char** cnt_ip = &literal_hashnum_packages;
 
 	char *char_cnt_val = NULL;
-	int real_cntIPval = 0;
+	int number_of_ippackages = 0;
 
 	gboolean Sresult = false;
 
@@ -146,10 +177,10 @@ static inline void insertTo_ip_table(GHashTable *anIP_table, char *key_ip){
 	switch(Sresult)
     	{
 		case(true):
-			char_cnt_val = strdup(subcnt_IP);
-			real_cntIPval = atoi( subcnt_IP );
-			++real_cntIPval;
-			sprintf(char_cnt_val, "%d", real_cntIPval);
+			char_cnt_val = strdup(literal_hashnum_packages);
+			number_of_ippackages = atoi( literal_hashnum_packages );
+			++number_of_ippackages;
+			sprintf(char_cnt_val, "%d", number_of_ippackages);
 	            	/* Rewrite old value of cnt */
 		    	g_hash_table_replace (anIP_table, g_strdup (key_ip), g_strdup (char_cnt_val));
 		break;
@@ -167,7 +198,7 @@ int run_sniffing(const char *dev_interface){
 
 	bool promiscuous_mode = false;
 
-	char _errbuff[PCAP_ERRBUF_SIZE];/* Errors data here */
+	char errbuff[PCAP_ERRBUF_SIZE];/* Errors data here */
 
 	/* declaration in sniff.h */
 	phadle = NULL;
@@ -176,10 +207,10 @@ int run_sniffing(const char *dev_interface){
 	bpf_u_int32 netp;  /* IPv4 netp of the network on which packets are being captured */
 	bpf_u_int32 maskp; /* Mask associated with*/
 	/* Determine the IPv4 network number and mask */
-	if(pcap_lookupnet(dev_interface, &netp, &maskp, _errbuff) == -1){
+	if(-1 == pcap_lookupnet(dev_interface, &netp, &maskp, errbuff)){
 		netp = 0;
 		maskp = 0;
-		put_log("[SNIFFING]Couldn't get netmask for device:", 1, _errbuff);
+		put_log("[SNIFFING]Couldn't get netmask for device:", 1, errbuff);
 		exit(EXIT_FAILURE);
 
 	}
@@ -187,9 +218,9 @@ int run_sniffing(const char *dev_interface){
 	put_log("[SNIFFING]Device specified: ", 1, dev_interface);
 
 	/* Opening device in promiscuous-mode */
-	phadle = pcap_open_live(dev_interface, BUFSIZ, promiscuous_mode, timeout, _errbuff);
+	phadle = pcap_open_live(dev_interface, BUFSIZ, promiscuous_mode, timeout, errbuff);
 	if(NULL == phadle) {
-		put_log("[SNIFFING]Couldn't open device:", 1, _errbuff);
+		put_log("[SNIFFING]Couldn't open device:", 1, errbuff);
 		exit(EXIT_FAILURE);
 	}
 

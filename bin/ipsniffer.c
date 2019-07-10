@@ -10,11 +10,10 @@
 #include <getopt.h>
 #include <errno.h>
 
-
 int getPID_fromdir()
 {
+	/* here locates PID of dameon */
 	char *sniff_pid_file = "/var/run/ip_sniffer.pid";
-
 
 	FILE *pid_file = fopen(sniff_pid_file, "r+b");
 
@@ -43,26 +42,28 @@ void fatal(char *err){
 	exit(1);
 }
 
-static const char *array[3] = {
-        " -i --ip [ip] Put into a dump info only about single IP address\n",
-        " -s --stat    Display collected statistics\n",
-        " -h --help    Display usage information.n \n"
-};
+void print_usage(FILE* stream, int exit_code,
+		char* program_name, const char *err[], int optnum) {
 
-const char* program_name;
-
-void print_usage(FILE* stream, int exit_code) {
 	fprintf(stream, "Usage: %s options [...] \n", program_name);
-        for(int i=0;i<3;i++){
-                fprintf(stream, "%s",array[i]);
+        for(int i=0;i<optnum;i++){
+                fprintf(stream, "%s",err[i]);
         }
 	 exit(exit_code);
 }
 
 int main(int argc,char *argv[])
 {
-	char *ip2search = "putall";
 
+	unsigned optsize = 3;
+	static const char *optarray[3] = {
+	        " -i --ip [ip] Put into a dump info only about single IP address\n",
+	        " -s --stat    Display collected statistics\n",
+	        " -h --help    Display usage information.n \n"
+	};
+
+
+	char* program_name;
 	const char* const short_options = "i:sh";
 	const struct option long_options[] = {
                 { "ip",  1, NULL, 'i' },
@@ -72,21 +73,22 @@ int main(int argc,char *argv[])
 	};
 
 	int next_option;
+	char *searchkey = "putall";
 	program_name = argv[0];
 	do {
 		next_option = getopt_long(argc, argv, short_options,
 					long_options, NULL);
 		switch(next_option) {
 			case 'i':
-				ip2search = strdup(optarg);
+				searchkey = strdup(optarg);
 			break;
                         case 's':
 			break;
 			case 'h':
-				print_usage(stdout, 0);
+				print_usage(stdout, EXIT_SUCCESS, program_name, optarray, optsize);
                         break;
 			case '?':
-				print_usage(stderr, 1);
+				print_usage(stderr, EXIT_FAILURE, program_name, optarray, optsize);
                         break;
 			case -1:
 			break;
@@ -117,10 +119,11 @@ int main(int argc,char *argv[])
 		fatal("Opening fifo channel error on write");
 		return (EXIT_FAILURE);
 	}
-	write(writefd, ip2search, strlen(ip2search)+1);
+	write(writefd, searchkey, strlen(searchkey)+1);
 	close(writefd);
 
-	char answer[64];
+	unsigned bufize = 64;
+	char answer[bufize];
 	int readfd;
 	if((readfd = open(ipcount_fifo_s, O_RDWR)) < 0){
 		fatal("Opening fifo channel error on read");
@@ -128,7 +131,7 @@ int main(int argc,char *argv[])
 	}
 
 	do{
-		read(readfd, answer, 64);
+		read(readfd, answer, bufize);
 		fprintf(stdout, "%s",answer);
 	}
 	while(1);//fgetc(stdin)!= '\n');

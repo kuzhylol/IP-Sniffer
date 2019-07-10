@@ -1,18 +1,17 @@
 #include <sys/resource.h>
 #include <sys/stat.h>
-
 #include <signal.h>
 #include <errno.h>
-#include <unistd.h>
-
-#include <stdbool.h>
-#include <pcap.h>
-
-#include <glib-2.0/gmodule.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
 
 #include "sniff.h"
 #include "daemon.h"
 
+#if !defined(_GNU_SOURCE)
+	#define _GNU_SOURCE
+#endif
 
 void put_log(const char* msg, int msgcnt, ...)
 {
@@ -35,11 +34,6 @@ void put_log(const char* msg, int msgcnt, ...)
         fprintf(fd, "\n");
         va_end(ams);
 	fclose(fd);
-}
-
-static void destroy_thread(void)
-{
-	g_hash_table_destroy(ip_table);
 }
 
 
@@ -79,7 +73,8 @@ int daemon_sniff(const char* devname)
 	/* fill handlers field */
 	for(size_t i=0;i<signum;i++){
 		actchunk[i].sa_sigaction = fsigs[i];
-                actchunk[i].sa_flags=SA_SIGINFO; /* use sa_sigaction instead sa_handler (legacy) */
+                /* use sa_sigaction instead sa_handler (legacy) */
+                actchunk[i].sa_flags=SA_SIGINFO;
 	}
 
 	for(size_t i=0;i<signum;i++){
@@ -95,10 +90,6 @@ int daemon_sniff(const char* devname)
 	/* the main procedure of getting IP info */
 	/* search run_sniffing() in sniff.c */
 	sniff_retval = run_sniffing(devname);
-	put_log("[DAEMON] Sniffer completed\n", 0);
-
-
-	destroy_thread();
 
 	put_log("[DAEMON] Sniffer terminated\n", 0);
 
