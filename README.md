@@ -29,8 +29,10 @@ Synopsis
 --------
 
 ```
+# autoconf
+# ./configure 
 # make all
-# make install|uninstall - embbed|withdraw daemon in|from systemd and execute binaries routines in|from /usr/sbin/
+# sudo make install|uninstall - embbed|withdraw daemon in|from systemd and execute binaries routines in|from /usr/sbin/
 # systemctl start dipsniffer@xxx where 'xxx' - name of iterface (the default is eth0)
 # systemctl stop dipsniffer - stop dipsniffer daemon execution
 # systemctl -l status dipsniffer - spectate the status
