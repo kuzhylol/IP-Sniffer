@@ -16,9 +16,13 @@
 #include "daemon.h"
 #include "sniff.h"
 
-/* associative array for save hashtable
-with output data (ipt+package num)*/
-GHashTable *ip_table;
+/* The Pointers below are global.
+It is related to their application 
+in signal handlers */
+/* An associative array for contaning a hashtable
+with output data (ip+package num)*/
+GHashTable *global_ip_list;
+/* The main pointer to iFace data collection */
 pcap_t* phadle;
 
 struct ip_header{
@@ -36,14 +40,15 @@ struct ip_header{
         u_short ip_sum;                 /* checksum */
         struct  in_addr ip_src;  /* source and dest address */
 };
-/* IP header len */
+/* IP header lenght */
+/* Is used for software reducing broken packages */
 #define IP_HL(ip) (((ip)->ip_vhl) & 0x0f)
 
 
-static inline void insert_ip2table(GHashTable *anIP_table, char *key_ip);
+static inline void insert_ip2table(GHashTable *ip_list, char *key_ip);
 
 
-/* SIGTERM handler */
+/* SIGTERM handler signal */
 void sniff_term(){
 	pcap_breakloop(phadle);
 }
@@ -53,7 +58,7 @@ static inline char *make_ipstring(const char *ip, const char *key, size_t size){
 	char *buffer2write = calloc(size, sizeof(buffer2write));
 	char *Result = NULL;
 
-	/* 192.168.1.1 453\n <- how to saves*/
+	/* 192.168.1.1 453\n <- how is saves */
 	if(NULL != ip && NULL != key && NULL != buffer2write){
 		char *space = " ", *newline = "\n"; /* don't forget about '\0' */
 		/* copy ip to buffer */
@@ -69,8 +74,8 @@ static inline char *make_ipstring(const char *ip, const char *key, size_t size){
 	return buffer2write;
 }
 
-/* glib handler */
-static void fout_iptable(gpointer key, gpointer value, gpointer file){
+
+static void print2f_iplist(gpointer key, gpointer value, gpointer file){
 	int *ip_file = file;
 	char *ip2write = make_ipstring((char*)key, (char*)value, 64);
 	if(NULL != ip2write){
@@ -80,6 +85,7 @@ static void fout_iptable(gpointer key, gpointer value, gpointer file){
 		put_log("[SNIFFING]Nothing to show", 0);
 	}
 }
+
 
 static char *get_ip(int buffsize){
 	char *ip_literal;
@@ -99,14 +105,14 @@ static char *get_ip(int buffsize){
 
 static void match_specific_ip(const char* anip, const int fdes){
 	unsigned ip_plus_cnt_size = 64;
-	gpointer ipcnt = g_hash_table_lookup(ip_table, (gpointer*) anip );
+	gpointer ipcnt = g_hash_table_lookup(global_ip_list, (gpointer*) anip );
 	char *ip2write = make_ipstring(anip, (char*)ipcnt, ip_plus_cnt_size);
 	write(fdes, ip2write, ip_plus_cnt_size);
 	free(ip2write);
 }
 
 
-/* USR1 handler */
+/* SIGUSR1 signal handler */
 void get_req(){
 
 	char *sip_literal;
@@ -122,11 +128,11 @@ void get_req(){
 		return;
 	}
 
-	char *get_fullstatistic = "putall";
+	const char *const get_fullstatistic = "putall";
 	switch(strcmp(sip_literal, get_fullstatistic)){
 		case(0):
 			/* give all ip statistics to cli*/
-			g_hash_table_foreach(ip_table, fout_iptable, &writefd);
+			g_hash_table_foreach(global_ip_list, print2f_iplist, &writefd);
 		break;
 		default:
 			/* give specific ip statistics to cli */
@@ -136,7 +142,6 @@ void get_req(){
 	}
 	close(writefd);
 	free(sip_literal);
-	put_log("[SNIFFING]IP putted into dump", 0);
 }
 
 
@@ -154,11 +159,11 @@ void receive_dataflow_callback(u_char *args, const struct pcap_pkthdr* pkthdr,
 	}
 
 	char *connected_ip = inet_ntoa(ip->ip_src);
-	insert_ip2table(ip_table,  connected_ip);
+	insert_ip2table(global_ip_list,  connected_ip);
 }
 
 
-static inline void insert_ip2table(GHashTable *anIP_table, char *key_ip){
+static inline void insert_ip2table(GHashTable *ip_list, char *key_ip){
 
 	char* literal_hashipkey = NULL;
         char* literal_hashnum_packages = NULL;
@@ -171,7 +176,7 @@ static inline void insert_ip2table(GHashTable *anIP_table, char *key_ip){
 	gboolean Sresult = false;
 
         /* Try looking up this key. */
-	Sresult = g_hash_table_lookup_extended (anIP_table, key_ip, (gpointer*)ip_key, (gpointer*)cnt_ip);
+	Sresult = g_hash_table_lookup_extended (ip_list, key_ip, (gpointer*)ip_key, (gpointer*)cnt_ip);
 
 	/* insertion routine */
 	switch(Sresult)
@@ -182,11 +187,11 @@ static inline void insert_ip2table(GHashTable *anIP_table, char *key_ip){
 			++number_of_ippackages;
 			sprintf(char_cnt_val, "%d", number_of_ippackages);
 	            	/* Rewrite old value of cnt */
-		    	g_hash_table_replace (anIP_table, g_strdup (key_ip), g_strdup (char_cnt_val));
+		    	g_hash_table_replace (ip_list, g_strdup (key_ip), g_strdup (char_cnt_val));
 		break;
 		default:
 			/* Insert into our hash table it is not a duplicate. */
-	 	       	g_hash_table_insert (anIP_table, g_strdup (key_ip), (gpointer*)"1");
+	 	       	g_hash_table_insert (ip_list, g_strdup (key_ip), (gpointer*)"1");
 	       	break;
     	}
 	free(char_cnt_val);
@@ -202,7 +207,7 @@ int run_sniffing(const char *dev_interface){
 
 	/* declaration in sniff.h */
 	phadle = NULL;
-	ip_table = NULL;
+	global_ip_list = NULL;
 
 	bpf_u_int32 netp;  /* IPv4 netp of the network on which packets are being captured */
 	bpf_u_int32 maskp; /* Mask associated with*/
@@ -226,8 +231,8 @@ int run_sniffing(const char *dev_interface){
 
 	put_log("[SNIFFING]Sniffing started", 0);
 
-	/* memory allocation for first set IP|COUNT of Hash table*/
-	ip_table = g_hash_table_new(g_str_hash, g_str_equal);
+	/* memory allocation for first set ip-count pair of Hash table*/
+	global_ip_list = g_hash_table_new(g_str_hash, g_str_equal);
 
 	put_log("[SNIFFING]Hash table created", 0);
 

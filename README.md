@@ -23,23 +23,24 @@ The command-line process mentioned before provides data exchange between the dae
 Also is used the **sytemd** subsystem for comfortable and reliable daemon management.  
 
 I don`t guarantee to receive an absolutely all packages.
-Was designed and tested on Manjaro XFCE.
+Was designed and tested on Manjaro XFCE also adapted to the Debian.
 
 Synopsis
 --------
 
 ```
-# make clean all
-# make install/uninstall - embbed/withdraw daemon in/from systemd and cli binaries routines in/from /usr/sbin/
-# make booton/bootoff - set daemon in autostarting mode (not tested on a wide ranges of devices)
+# make all
+# make install|uninstall - embbed|withdraw daemon in|from systemd and execute binaries routines in|from /usr/sbin/
 # systemctl start dipsniffer@xxx where 'xxx' - name of iterface (the default is eth0)
 # systemctl stop dipsniffer - stop dipsniffer daemon execution
 # systemctl -l status dipsniffer - spectate the status
-for more see - man systemd
+# For more see - man systemd
+# make clean
 
-IPC managment, should use an another command line:
-# ipsniffer --ip [ip] - Put in command line number of IP packages (f.e. 192.168.1.17 1)
-# ipsniffer --stat - Put in command line all statistics about number of IP packages 
+IPC management.
+To control the deamon is necessary to use command lines below:
+# sudo ipsniffer --ip [ip] - Put in command line number of IP packages (f.e. 192.168.1.17 1)
+# sudo ipsniffer --stat - Put in command line all statistics about number of IP packages 
 ```
 
 Flow example on 'wlp3s0':

@@ -1,0 +1,50 @@
+TARGET=dipsniffer 
+DEPS=daemon sniff
+REQUNIT=ipsniffer
+
+LIBS=glib-2.0
+
+CC=gcc
+
+log_dir=/var/log
+BINDIR=/usr/sbin/
+LOCALPATH=./bin
+SYSDPATH=/etc/systemd/system
+
+CFLAGS=-O2 -std=gnu11 -DLOGDIR='"$(log_dir)"' -Wall -Wextra -Wpedantic 
+
+DEPS:=$(addsuffix .o, $(DEPS))
+LIBFLAGS:=$(shell pkg-config --cflags --libs $(LIBS)) -lpcap	
+
+
+help:				## display this message
+	@echo Available options:
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+all: clean | $(TARGET) $(REQUNIT) ## to assembly binaries
+
+%.o: %.c
+	$(CC) $(CFLAGS) $(LIBFLAGS) -c $<
+
+$(TARGET): $(DEPS)		
+	$(CC) $(CFLAGS) $(DEPS) $(addsuffix .c, $(TARGET)) $(LIBFLAGS) -o $@
+
+$(REQUNIT): $(TARGET)
+	$(CC) $(LOCALPATH)/$(addsuffix .c, $(REQUNIT)) -o $(LOCALPATH)/$(REQUNIT)
+
+install:  	## to embbed daemon in systemd
+	install $(TARGET) $(LOCALPATH)/$(REQUNIT) $(DESTDIR)$(BINDIR)
+	install $(LOCALPATH)/$(addsuffix @.service , $(TARGET)) $(SYSDPATH)/
+	systemctl daemon-reload
+
+uninstall: 	## to remove executable files from current OS
+	rm -f $(DESTDIR)$(BINDIR)/$(REQUNIT)
+	rm -f $(SYSDPATH)/$(addsuffix @.service , $(TARGET))
+
+
+clean:	## to remove intermediate files
+	@echo Tidying things up...
+	-rm -f *.o $(TARGET) $(LOCALPATH)/$(REQUNIT)
+	-rm -f *.log
+
+.PHONY: all clean install help

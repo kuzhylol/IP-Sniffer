@@ -128,7 +128,7 @@ int main(int argc,char *argv[])
         int aResult = -1;
         pid_t ret_status;
         /* We run daemon here */
-        char *sniff_pid_file =  "/var/run/ip_sniffer.pid";
+        const char *sniff_pid_file =  "/var/run/ip_sniffer.pid";
 
         /* make second fork for run sniffer */
         switch(ret_status = fork()){
@@ -171,6 +171,8 @@ int main(int argc,char *argv[])
 	put_log("[SNIFFING]Sniffer terminated", 0);
 
 	free(device_interface);
+
+	/* remove pipe from system */
 	unlink(IPCOUNT_FIFO_F);
 	unlink(IPCOUNT_FIFO_S);
 

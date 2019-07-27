@@ -17,10 +17,9 @@ void put_log(const char* msg, int msgcnt, ...)
 {
         va_list ams;
         char *nextmsg;
-        char *log_path = "/var/log/ip_sniffer.log";
-	FILE *fd = fopen(log_path, "a+");
+	FILE *fd = fopen(LOG_PATH, "a+");
 	if (NULL == fd) {
-		fprintf(stderr, "Cannot open the log file: %s\n", log_path);
+		fprintf(stderr, "Cannot open the log file: %s\n", LOG_PATH);
 		exit(EXIT_FAILURE);
 	}
 
@@ -54,7 +53,6 @@ static int fd_limit(int MaxFd)
 int daemon_sniff(const char* devname)
 {
 	int sniff_retval = 0;
-	// sigset_t sigset;
 
 	int signal_list[2] = {SIGTERM, SIGUSR1};
 	size_t signum = sizeof(signal_list)/sizeof(signal_list[0]);
@@ -84,14 +82,10 @@ int daemon_sniff(const char* devname)
                 }
 	}
 
-	put_log("[DAEMON] Signal handlers granted \n", 0);
-
 	fd_limit(FD_LIMIT);
 	/* the main procedure of getting IP info */
 	/* search run_sniffing() in sniff.c */
 	sniff_retval = run_sniffing(devname);
-
-	put_log("[DAEMON] Sniffer terminated\n", 0);
 
 	return sniff_retval;
 }
